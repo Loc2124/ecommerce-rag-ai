@@ -29,7 +29,10 @@ begin
     v_product_id := (v_item->>'product_id')::uuid;
     v_qty := (v_item->>'quantity')::int;
 
-    select stock into v_stock from products where id = v_product_id for update;
+    select stock into v_stock
+    from products
+    where id = v_product_id and is_active = true
+    for update;
 
     if v_stock is null then
       raise exception 'Sản phẩm % không tồn tại', v_product_id;

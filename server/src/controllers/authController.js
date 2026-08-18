@@ -181,8 +181,8 @@ async function registerController(req, res) {
 
     return res.status(201).json(
       buildResponse(
-        "Registration successful. Please check your email to confirm account.",
         true,
+        "Registration successful. Please check your email to confirm account.",
         {
           user: data?.user || null,
           session: data?.session || null,

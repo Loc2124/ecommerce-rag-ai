@@ -4,6 +4,50 @@ const { createClient } = require("@supabase/supabase-js");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const chatQuotaStore = new Map();
+
+function enforceChatRateLimit(userId, limitPerMinute = 10, windowMs = 60000) {
+  if (!userId) {
+    return { allowed: true, remaining: limitPerMinute };
+  }
+
+  const now = Date.now();
+  const recent = (chatQuotaStore.get(userId) || []).filter(
+    (timestamp) => now - timestamp < windowMs,
+  );
+
+  if (recent.length >= limitPerMinute) {
+    const oldest = recent[0];
+    const retryAfterSeconds = Math.max(
+      1,
+      Math.ceil((windowMs - (now - oldest)) / 1000),
+    );
+
+    return {
+      allowed: false,
+      remaining: 0,
+      retryAfterSeconds,
+    };
+  }
+
+  recent.push(now);
+  chatQuotaStore.set(userId, recent);
+
+  return {
+    allowed: true,
+    remaining: Math.max(0, limitPerMinute - recent.length),
+  };
+}
+
+function extractAnswerText(response) {
+  if (!response) return "";
+
+  if (typeof response.text === "function") {
+    return response.text();
+  }
+
+  return response.text || response.output_text || "";
+}
 
 async function detectLLMModel(apiKey, preferred) {
   // If user set LLM_MODEL explicitly, we'll check it first against the ModelService list
@@ -64,49 +108,96 @@ async function detectLLMModel(apiKey, preferred) {
   }
 }
 
-async function chatWithAI(userMessage) {
-  // 1. Lấy context từ Hybrid Search (cùng trả về embedding của câu hỏi)
-  const { results: products, queryVector } = await performHybridSearch(
-    userMessage,
-    0.5,
-  );
-
-  if (!products || products.length === 0) {
-    return "Xin lỗi, tôi không tìm thấy sản phẩm nào phù hợp với yêu cầu của bạn.";
+async function getChatHistoryBySession(sessionId, userId) {
+  if (!sessionId) {
+    throw new Error("Session id is required");
   }
 
-  // 2. Định dạng context để đưa vào Prompt
-  const contextString = products
-    .map((p) => `- Tên: ${p.name}, Giá: ${p.price.toLocaleString()}đ`)
-    .join("\n");
+  const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+  );
 
-  // 3. Gọi LLM để sinh câu trả lời — detect a supported model if configured one is invalid
-  const preferredLLM = process.env.LLM_MODEL;
-  const llmModelName =
-    (await detectLLMModel(process.env.GEMINI_API_KEY, preferredLLM)) ||
-    preferredLLM ||
-    "models/text-bison-001";
-  console.log(`🔎 Using LLM model: ${llmModelName}`);
-  const model = genAI.getGenerativeModel({ model: llmModelName });
+  const { data, error } = await supabase
+    .from("chat_logs")
+    .select(
+      "id, session_id, question, answer, used_rag, search_method, latency_ms, cache_hit, created_at",
+    )
+    .eq("session_id", sessionId)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
 
-  const prompt = `
-        Bạn là trợ lý bán hàng thông minh. Dựa vào danh sách sản phẩm sau:
-        ${contextString}
-        
-        Hãy trả lời câu hỏi của khách hàng: "${userMessage}"
-        Yêu cầu:
-        - Chỉ tư vấn dựa trên danh sách trên.
-        - Trả lời ngắn gọn, nhiệt tình.
-        - Nếu khách hỏi ngoài lề, hãy từ chối khéo léo.
+  if (error) {
+    throw error;
+  }
+
+  return data || [];
+}
+
+async function chatWithAI(userMessage, context = {}) {
+  const { user_id = null, session_id = "guest-session" } = context;
+
+  let products = [];
+  let queryVector = null;
+  let answer =
+    "Xin lỗi, tôi không tìm thấy sản phẩm nào phù hợp với yêu cầu của bạn.";
+  let isFallback = false;
+  let errorType = null;
+
+  try {
+    const searchResult = await performHybridSearch(userMessage, 0.5);
+    products = searchResult?.results || [];
+    queryVector = searchResult?.queryVector || null;
+  } catch (searchError) {
+    console.error("Search failed in chatWithAI:", searchError);
+    isFallback = true;
+    errorType = "search_failed";
+    products = [];
+  }
+
+  if (!products || products.length === 0) {
+    isFallback = true;
+    errorType = errorType || "no_product_match";
+    answer =
+      "Xin lỗi, tôi không tìm thấy sản phẩm nào phù hợp với yêu cầu của bạn.";
+  } else {
+    const contextString = products
+      .map((p) => `- Tên: ${p.name}, Giá: ${p.price.toLocaleString()}đ`)
+      .join("\n");
+
+    const preferredLLM = process.env.LLM_MODEL;
+    const llmModelName =
+      (await detectLLMModel(process.env.GEMINI_API_KEY, preferredLLM)) ||
+      preferredLLM ||
+      "models/text-bison-001";
+
+    console.log(`🔎 Using LLM model: ${llmModelName}`);
+    const model = genAI.getGenerativeModel({ model: llmModelName });
+
+    const prompt = `
+      Bạn là trợ lý bán hàng thông minh. Dựa vào danh sách sản phẩm sau:
+      ${contextString}
+
+      Hãy trả lời câu hỏi của khách hàng: "${userMessage}"
+      Yêu cầu:
+      - Chỉ tư vấn dựa trên danh sách trên.
+      - Trả lời ngắn gọn, nhiệt tình.
+      - Nếu khách hỏi ngoài lề, hãy từ chối khéo léo.
     `;
 
-  const chatResult = await model.generateContent(prompt);
-  const answer =
-    typeof chatResult.response?.text === "function"
-      ? chatResult.response.text()
-      : chatResult.response?.text || "";
+    try {
+      const chatResult = await model.generateContent(prompt);
+      answer = extractAnswerText(chatResult.response || chatResult) || answer;
+      isFallback = false;
+      errorType = null;
+    } catch (llmError) {
+      console.error("LLM generation failed in chatWithAI:", llmError);
+      isFallback = true;
+      errorType = "llm_unavailable";
+      answer = "Xin lỗi, hệ thống đang bận. Vui lòng thử lại sau.";
+    }
+  }
 
-  // 4. Lưu chat log vào bảng `chat_logs` (không block trả về nếu lỗi)
   try {
     const supabase = createClient(
       process.env.SUPABASE_URL,
@@ -114,8 +205,8 @@ async function chatWithAI(userMessage) {
     );
     const start = Date.now();
     await supabase.from("chat_logs").insert({
-      user_id: null,
-      session_id: null,
+      user_id: user_id,
+      session_id: session_id,
       question: userMessage,
       question_embedding: queryVector,
       answer: answer,
@@ -131,8 +222,14 @@ async function chatWithAI(userMessage) {
 
   return {
     answer,
-    recommendations: products, // Trả về để frontend hiển thị card sản phẩm
+    recommendations: products,
+    is_fallback: isFallback,
+    error_type: errorType,
   };
 }
 
-module.exports = { chatWithAI };
+module.exports = {
+  chatWithAI,
+  getChatHistoryBySession,
+  enforceChatRateLimit,
+};
