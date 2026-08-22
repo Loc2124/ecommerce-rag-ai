@@ -3,6 +3,7 @@ const {
   getProductById,
   createProduct,
   updateProduct,
+  retryProductEmbedding,
   deleteProduct,
 } = require("../services/productService");
 
@@ -23,7 +24,7 @@ async function listProductsController(req, res) {
   } catch (err) {
     console.error("Error in GET /api/products:", err);
     return res.status(500).json(
-      buildResponse(false, err.message || "Internal error", null, {
+      buildResponse(false, "Product service unavailable", null, {
         code: "PRODUCT_FETCH_FAILED",
       }),
     );
@@ -45,7 +46,7 @@ async function getProductController(req, res) {
   } catch (err) {
     console.error("Error in GET /api/products/:id:", err);
     return res.status(500).json(
-      buildResponse(false, err.message || "Internal error", null, {
+      buildResponse(false, "Product service unavailable", null, {
         code: "PRODUCT_FETCH_FAILED",
       }),
     );
@@ -61,7 +62,7 @@ async function createProductController(req, res) {
   } catch (err) {
     console.error("Error in POST /api/products:", err);
     return res.status(400).json(
-      buildResponse(false, err.message || "Bad request", null, {
+      buildResponse(false, "Product request is invalid", null, {
         code: "PRODUCT_CREATE_FAILED",
       }),
     );
@@ -85,7 +86,7 @@ async function updateProductController(req, res) {
   } catch (err) {
     console.error("Error in PUT /api/products/:id:", err);
     return res.status(400).json(
-      buildResponse(false, err.message || "Bad request", null, {
+      buildResponse(false, "Product request is invalid", null, {
         code: "PRODUCT_UPDATE_FAILED",
       }),
     );
@@ -112,8 +113,32 @@ async function deleteProductController(req, res) {
   } catch (err) {
     console.error("Error in DELETE /api/products/:id:", err);
     return res.status(400).json(
-      buildResponse(false, err.message || "Bad request", null, {
+      buildResponse(false, "Product request is invalid", null, {
         code: "PRODUCT_DELETE_FAILED",
+      }),
+    );
+  }
+}
+
+async function retryProductEmbeddingController(req, res) {
+  try {
+    const product = await retryProductEmbedding(req.params.id);
+    if (!product) {
+      return res.status(404).json(
+        buildResponse(false, "Product not found", null, {
+          code: "PRODUCT_NOT_FOUND",
+        }),
+      );
+    }
+
+    return res.json(
+      buildResponse(true, "Product embedding retry completed", product),
+    );
+  } catch (err) {
+    console.error("Error in POST /api/products/:id/retry-embedding:", err);
+    return res.status(500).json(
+      buildResponse(false, "Embedding retry failed", null, {
+        code: "EMBEDDING_RETRY_FAILED",
       }),
     );
   }
@@ -124,5 +149,6 @@ module.exports = {
   getProductController,
   createProductController,
   updateProductController,
+  retryProductEmbeddingController,
   deleteProductController,
 };

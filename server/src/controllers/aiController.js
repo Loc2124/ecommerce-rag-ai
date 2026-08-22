@@ -20,12 +20,19 @@ async function chatAIController(req, res) {
     if (
       !message ||
       typeof message !== "string" ||
-      message.trim().length === 0 ||
-      message.length > 2000
+      message.trim().length === 0
     ) {
       return res.status(400).json(
         buildResponse(false, "Message is required", null, {
           code: "INVALID_MESSAGE",
+        }),
+      );
+    }
+
+    if (message.length > 2000) {
+      return res.status(400).json(
+        buildResponse(false, "Message must not exceed 2,000 characters", null, {
+          code: "MESSAGE_TOO_LONG",
         }),
       );
     }

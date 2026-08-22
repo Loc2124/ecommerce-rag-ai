@@ -32,7 +32,7 @@ async function createOrderController(req, res) {
       .json(buildResponse(true, "Order created successfully", { order }));
   } catch (err) {
     return res.status(400).json(
-      buildResponse(false, err.message || "Bad request", null, {
+      buildResponse(false, "Order request is invalid", null, {
         code: "ORDER_CREATE_FAILED",
       }),
     );
@@ -63,7 +63,7 @@ async function listOrdersController(req, res) {
   } catch (err) {
     console.error("Error in GET /api/orders:", err);
     return res.status(500).json(
-      buildResponse(false, err.message || "Internal error", null, {
+      buildResponse(false, "Order service unavailable", null, {
         code: "ORDERS_LIST_FAILED",
       }),
     );
@@ -114,7 +114,7 @@ async function getOrderController(req, res) {
 
     console.error("Error in GET /api/orders/:orderId:", err);
     return res.status(500).json(
-      buildResponse(false, err.message || "Internal error", null, {
+      buildResponse(false, "Order service unavailable", null, {
         code: "ORDER_GET_FAILED",
       }),
     );
@@ -144,6 +144,20 @@ async function cancelOrderController(req, res) {
 
     const order = await cancelOrder(orderId, userId);
 
+    if (order.refund_required) {
+      return res.status(202).json(
+        buildResponse(
+          true,
+          "Refund request recorded; cancellation awaits refund processing",
+          {
+            order: order.order,
+            refund_request_status: order.refund_request_status,
+          },
+          { code: "REFUND_REQUIRED" },
+        ),
+      );
+    }
+
     return res.json(
       buildResponse(true, "Order cancelled successfully", { order }),
     );
@@ -164,6 +178,14 @@ async function cancelOrderController(req, res) {
       );
     }
 
+    if (err.message.includes("refund workflow")) {
+      return res.status(409).json(
+        buildResponse(false, "A refund is required before cancellation", null, {
+          code: "REFUND_REQUIRED",
+        }),
+      );
+    }
+
     if (err.message.includes("Order not found")) {
       return res.status(404).json(
         buildResponse(false, "Order not found", null, {
@@ -174,7 +196,7 @@ async function cancelOrderController(req, res) {
 
     console.error("Error in PUT /api/orders/:orderId/cancel:", err);
     return res.status(500).json(
-      buildResponse(false, err.message || "Internal error", null, {
+      buildResponse(false, "Order service unavailable", null, {
         code: "ORDER_CANCEL_FAILED",
       }),
     );

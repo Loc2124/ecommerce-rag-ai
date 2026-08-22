@@ -122,18 +122,36 @@ async function createProduct(productInput) {
   const { category_id, sku, name, description, attributes, price, stock } =
     productInput;
 
-  if (!name || !price) {
+  if (
+    !name ||
+    typeof name !== "string" ||
+    name.trim().length === 0 ||
+    name.trim().length > 200
+  ) {
     throw new Error("name and price are required");
+  }
+
+  const normalizedPrice = Number(price);
+  const normalizedStock = Number(stock ?? 0);
+  if (
+    !Number.isFinite(normalizedPrice) ||
+    normalizedPrice < 0 ||
+    !Number.isInteger(normalizedStock) ||
+    normalizedStock < 0
+  ) {
+    throw new Error(
+      "price must be non-negative and stock must be a non-negative integer",
+    );
   }
 
   const payload = {
     category_id: category_id || null,
     sku: sku || null,
-    name,
+    name: name.trim(),
     description: description || null,
     attributes: attributes || {},
-    price: Number(price),
-    stock: Number(stock ?? 0),
+    price: normalizedPrice,
+    stock: normalizedStock,
     is_active: true,
   };
 
@@ -263,6 +281,44 @@ async function updateProduct(productId, updates) {
   return normalizeProduct(data);
 }
 
+async function retryProductEmbedding(productId) {
+  const existing = await getProductById(productId);
+  if (!existing) return null;
+
+  const textToEmbed = [existing.name, existing.description || ""]
+    .filter(Boolean)
+    .join(" ");
+  await updateEmbeddingStatus(productId, "pending");
+
+  const payload = {
+    embedding_status: "failed",
+    embedding_error: "embedding generation failed",
+    embedding_updated_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  try {
+    const embedding = await generateEmbedding(textToEmbed);
+    if (!embedding) throw new Error("embedding generation failed");
+
+    payload.embedding = embedding;
+    payload.embedding_status = "ready";
+    payload.embedding_error = null;
+  } catch (error) {
+    payload.embedding_error = String(error.message || error).slice(0, 500);
+  }
+
+  const { data, error } = await supabase
+    .from("products")
+    .update(payload)
+    .eq("id", productId)
+    .select(PRODUCT_COLUMNS)
+    .single();
+
+  if (error) throw error;
+  return normalizeProduct(data);
+}
+
 async function deleteProduct(productId) {
   const { data, error } = await supabase
     .from("products")
@@ -280,5 +336,6 @@ module.exports = {
   getProductById,
   createProduct,
   updateProduct,
+  retryProductEmbedding,
   deleteProduct,
 };

@@ -1,0 +1,259 @@
+[
+  {
+    "question": "iPhone 17 Pro Max",
+    "expected_skus": ["iphone-17-pro-max"],
+    "category": "exact_keyword"
+  },
+  {
+    "question": "Samsung Galaxy Z Fold8",
+    "expected_skus": ["dien-thoai-samsung-galaxy-z-fold-8"],
+    "category": "exact_keyword"
+  },
+  {
+    "question": "iPhone 16 Pro Max",
+    "expected_skus": ["iphone-16-pro-max"],
+    "category": "exact_keyword"
+  },
+  {
+    "question": "Samsung Galaxy Z Flip8",
+    "expected_skus": ["dien-thoai-samsung-galaxy-z-flip-8"],
+    "category": "exact_keyword"
+  },
+  {
+    "question": "ASUS ROG Phone 5S",
+    "expected_skus": ["asus-rog-phone-5s-12gb"],
+    "category": "exact_keyword"
+  },
+  {
+    "question": "điện thoại Apple 256GB",
+    "expected_skus": ["iphone-17-pro-max", "iphone-16-pro-max"],
+    "category": "exact_keyword"
+  },
+  {
+    "question": "điện thoại Samsung màn hình gập",
+    "expected_skus": [
+      "dien-thoai-samsung-galaxy-z-fold-8",
+      "dien-thoai-samsung-galaxy-z-flip-8"
+    ],
+    "category": "exact_keyword"
+  },
+  {
+    "question": "điện thoại chơi game ASUS",
+    "expected_skus": ["asus-rog-phone-5s-12gb"],
+    "category": "exact_keyword"
+  },
+  {
+    "question": "iPhone cao cấp camera đẹp",
+    "expected_skus": ["iphone-17-pro-max", "iphone-16-pro-max"],
+    "category": "exact_keyword"
+  },
+  {
+    "question": "Samsung 5G 12GB 256GB",
+    "expected_skus": [
+      "dien-thoai-samsung-galaxy-z-fold-8",
+      "dien-thoai-samsung-galaxy-z-flip-8"
+    ],
+    "category": "exact_keyword"
+  },
+  {
+    "question": "Tôi muốn một chiếc điện thoại Apple đời mới, bộ nhớ 256GB",
+    "expected_skus": ["iphone-17-pro-max", "iphone-16-pro-max"],
+    "category": "paraphrase"
+  },
+  {
+    "question": "Gợi ý smartphone Samsung có thể gập lại",
+    "expected_skus": [
+      "dien-thoai-samsung-galaxy-z-fold-8",
+      "dien-thoai-samsung-galaxy-z-flip-8"
+    ],
+    "category": "paraphrase"
+  },
+  {
+    "question": "Máy nào phù hợp để chơi game nặng và có cấu hình cao?",
+    "expected_skus": ["asus-rog-phone-5s-12gb"],
+    "category": "paraphrase"
+  },
+  {
+    "question": "Tìm điện thoại chụp ảnh tốt, pin khỏe và hỗ trợ 5G",
+    "expected_skus": [
+      "iphone-17-pro-max",
+      "iphone-16-pro-max",
+      "dien-thoai-samsung-galaxy-z-fold-8"
+    ],
+    "category": "paraphrase"
+  },
+  {
+    "question": "Tôi cần điện thoại màn hình lớn của Samsung để làm việc",
+    "expected_skus": ["dien-thoai-samsung-galaxy-z-fold-8"],
+    "category": "paraphrase"
+  },
+  {
+    "question": "Có mẫu điện thoại nhỏ gọn nào khi gập lại dễ cầm không?",
+    "expected_skus": ["dien-thoai-samsung-galaxy-z-flip-8"],
+    "category": "paraphrase"
+  },
+  {
+    "question": "Điện thoại nào có sạc không dây và nhận diện khuôn mặt?",
+    "expected_skus": ["iphone-17-pro-max", "iphone-16-pro-max"],
+    "category": "paraphrase"
+  },
+  {
+    "question": "Tư vấn flagship Android có RAM 12GB và 5G",
+    "expected_skus": [
+      "dien-thoai-samsung-galaxy-z-fold-8",
+      "dien-thoai-samsung-galaxy-z-flip-8"
+    ],
+    "category": "paraphrase"
+  },
+  {
+    "question": "Tìm máy ASUS hiệu năng cao có thể chơi game",
+    "expected_skus": ["asus-rog-phone-5s-12gb"],
+    "category": "paraphrase"
+  },
+  {
+    "question": "Điện thoại cao cấp nào có camera AI và quay video 4K?",
+    "expected_skus": [
+      "iphone-17-pro-max",
+      "iphone-16-pro-max",
+      "dien-thoai-samsung-galaxy-z-flip-8"
+    ],
+    "category": "paraphrase"
+  },
+  {
+    "question": "iphone 17 pro max",
+    "expected_skus": ["iphone-17-pro-max"],
+    "category": "typo"
+  },
+  {
+    "question": "samsung galaxy z fold8 5g",
+    "expected_skus": ["dien-thoai-samsung-galaxy-z-fold-8"],
+    "category": "typo"
+  },
+  {
+    "question": "iphone 16 promax",
+    "expected_skus": ["iphone-16-pro-max"],
+    "category": "typo"
+  },
+  {
+    "question": "samsng galaxy z flip8",
+    "expected_skus": ["dien-thoai-samsung-galaxy-z-flip-8"],
+    "category": "typo"
+  },
+  {
+    "question": "asus rog phone 5s 12 gb",
+    "expected_skus": ["asus-rog-phone-5s-12gb"],
+    "category": "typo"
+  },
+  {
+    "question": "dien thoai apple 256 gb",
+    "expected_skus": ["iphone-17-pro-max", "iphone-16-pro-max"],
+    "category": "typo"
+  },
+  {
+    "question": "galaxy gap samsung",
+    "expected_skus": [
+      "dien-thoai-samsung-galaxy-z-fold-8",
+      "dien-thoai-samsung-galaxy-z-flip-8"
+    ],
+    "category": "typo"
+  },
+  {
+    "question": "rog phone choi game",
+    "expected_skus": ["asus-rog-phone-5s-12gb"],
+    "category": "typo"
+  },
+  {
+    "question": "iphone 17 camera dem",
+    "expected_skus": ["iphone-17-pro-max"],
+    "category": "typo"
+  },
+  {
+    "question": "samsumg fold 12gb",
+    "expected_skus": ["dien-thoai-samsung-galaxy-z-fold-8"],
+    "category": "typo"
+  },
+  {
+    "question": "Tôi có ngân sách cao và cần máy chụp ảnh đẹp, chơi game tốt, hỗ trợ 5G",
+    "expected_skus": [
+      "iphone-17-pro-max",
+      "dien-thoai-samsung-galaxy-z-fold-8",
+      "asus-rog-phone-5s-12gb"
+    ],
+    "category": "complex"
+  },
+  {
+    "question": "So sánh điện thoại gập Samsung với iPhone cao cấp về camera và bộ nhớ",
+    "expected_skus": [
+      "dien-thoai-samsung-galaxy-z-fold-8",
+      "dien-thoai-samsung-galaxy-z-flip-8",
+      "iphone-17-pro-max",
+      "iphone-16-pro-max"
+    ],
+    "category": "complex"
+  },
+  {
+    "question": "Tìm smartphone Android 5G có RAM lớn, pin tốt, màn hình 120Hz để chơi game",
+    "expected_skus": [
+      "dien-thoai-samsung-galaxy-z-fold-8",
+      "asus-rog-phone-5s-12gb"
+    ],
+    "category": "complex"
+  },
+  {
+    "question": "Tôi cần máy 256GB có sạc không dây, camera góc rộng và chống nước",
+    "expected_skus": [
+      "iphone-17-pro-max",
+      "iphone-16-pro-max",
+      "dien-thoai-samsung-galaxy-z-fold-8"
+    ],
+    "category": "complex"
+  },
+  {
+    "question": "Gợi ý sản phẩm cao cấp cho người thích quay video 4K và chụp đêm",
+    "expected_skus": [
+      "iphone-17-pro-max",
+      "iphone-16-pro-max",
+      "dien-thoai-samsung-galaxy-z-flip-8"
+    ],
+    "category": "complex"
+  },
+  {
+    "question": "Điện thoại nào cân bằng giữa hiệu năng chơi game, bộ nhớ 256GB và thiết kế mỏng nhẹ?",
+    "expected_skus": [
+      "asus-rog-phone-5s-12gb",
+      "dien-thoai-samsung-galaxy-z-fold-8"
+    ],
+    "category": "complex"
+  },
+  {
+    "question": "Tôi muốn đổi từ điện thoại cũ sang flagship có AI, 5G, sạc không dây và bảo mật tốt",
+    "expected_skus": [
+      "iphone-17-pro-max",
+      "dien-thoai-samsung-galaxy-z-fold-8"
+    ],
+    "category": "complex"
+  },
+  {
+    "question": "Máy nào có camera zoom, quay 8K hoặc 4K, màn hình tần số quét cao?",
+    "expected_skus": [
+      "dien-thoai-samsung-galaxy-z-fold-8",
+      "dien-thoai-samsung-galaxy-z-flip-8",
+      "iphone-17-pro-max"
+    ],
+    "category": "complex"
+  },
+  {
+    "question": "Hãy đề xuất điện thoại phù hợp cho game thủ nhưng vẫn chụp ảnh đẹp và có 5G",
+    "expected_skus": ["asus-rog-phone-5s-12gb", "iphone-17-pro-max"],
+    "category": "complex"
+  },
+  {
+    "question": "Sản phẩm nào có thể dùng lâu dài nhờ cấu hình cao, dung lượng lớn và pin trâu?",
+    "expected_skus": [
+      "iphone-17-pro-max",
+      "dien-thoai-samsung-galaxy-z-fold-8",
+      "asus-rog-phone-5s-12gb"
+    ],
+    "category": "complex"
+  }
+]

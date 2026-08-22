@@ -12,7 +12,7 @@ Expected response shape:
 {
 "success": true,
 "message": "Products retrieved",
-"data": [ ... ],
+"data": { "products": [ ... ] },
 "error": null
 }
 
@@ -36,7 +36,7 @@ Expected response shape:
 {
 "success": true,
 "message": "Product retrieved",
-"data": { ... },
+"data": { "product": { "...": "...", "embedding_status": "ready" } },
 "error": null
 }
 
@@ -63,13 +63,14 @@ Expected response shape:
 {
 "success": true,
 "message": "Product created successfully",
-"data": { ... },
+"data": { "...": "...", "embedding_status": "pending" },
 "error": null
 }
 
 Notes:
 
 - name and price are required.
+- price must be finite and non-negative; stock must be a non-negative integer.
 - product embedding is generated automatically if Gemini key is available.
 
 ## 4) PUT /api/products/:id
@@ -121,8 +122,18 @@ Notes:
 
 - GET /api/products/:id with invalid id -> 404
 - POST /api/products with missing name or price -> 400
+- POST /api/products with negative, NaN, or infinite price/stock -> 400
 - PUT /api/products/:id with invalid payload -> 400
 - DELETE /api/products/:id with unknown id -> 404
+
+## Security cases
+
+- Product mutation without a token -> 401
+- Product mutation with a valid non-admin token -> 403
+- Review without a completed purchase -> 400 PURCHASE_REQUIRED
+- Duplicate review for the same user/product -> 400
+- Direct anon/authenticated Supabase table access -> denied by RLS/grants
+- Payment webhook with an invalid or tampered signature -> 401
 
 ## Example curl commands
 

@@ -180,6 +180,23 @@ async function cancelOrder(orderId, userId) {
     );
   }
 
+  if (order.payment_method === "payos" && order.status === "confirmed") {
+    const { data: result, error } = await supabase.rpc(
+      "request_refund_for_order",
+      { p_order_id: orderId, p_requested_by: userId },
+    );
+    if (error) throw error;
+    if (!["refund_requested", "refund_already_requested"].includes(result)) {
+      throw new Error(`Unable to request refund: ${result}`);
+    }
+
+    return {
+      refund_required: true,
+      refund_request_status: result,
+      order,
+    };
+  }
+
   const { data: result, error } = await supabase.rpc(
     "cancel_and_restock_order",
     { p_order_id: orderId, p_new_status: "cancelled" },

@@ -16,19 +16,21 @@ function buildResponse(success, message, data = null, error = null) {
 async function paymentWebhookController(req, res) {
   try {
     const payload = req.body || {};
-    const providerData =
-      payload.data && typeof payload.data === "object" ? payload.data : payload;
-    const {
-      order_id,
-      order_code,
-      transaction_id = payload.payment_id || providerData.reference,
-      amount = providerData.amount,
-      signature,
-      status = providerData.code === "00" ? "PAID" : payload.status,
-    } = payload;
+    const hasSignedData =
+      payload.data &&
+      typeof payload.data === "object" &&
+      !Array.isArray(payload.data);
+    const providerData = hasSignedData ? payload.data : payload;
+    const orderCode = providerData.orderCode || providerData.order_code;
+    const transactionId = providerData.reference || providerData.transaction_id;
+    const amount = providerData.amount;
+    const status =
+      providerData.status ||
+      providerData.paymentStatus ||
+      (providerData.code === "00" ? "PAID" : null);
 
     if (
-      (!order_id && !order_code) ||
+      !orderCode ||
       !status ||
       !["PAID", "PENDING", "CANCELLED", "EXPIRED"].includes(status)
     ) {
@@ -47,13 +49,10 @@ async function paymentWebhookController(req, res) {
       );
     }
 
-    const resolvedOrderId = await resolveOrderId(
-      order_id,
-      order_code || providerData.orderCode,
-    );
+    const resolvedOrderId = await resolveOrderId(null, orderCode);
     const result = await syncPaymentWebhookStatus(
       resolvedOrderId,
-      transaction_id,
+      transactionId,
       status,
       amount,
       payload,
@@ -66,9 +65,14 @@ async function paymentWebhookController(req, res) {
     console.error("Error processing payment webhook:", err);
     const status = err.message?.includes("Order not found") ? 404 : 500;
     return res.status(status).json(
-      buildResponse(false, err.message || "Internal error", null, {
-        code: "WEBHOOK_FAILED",
-      }),
+      buildResponse(
+        false,
+        status === 404 ? "Order not found" : "Webhook processing failed",
+        null,
+        {
+          code: "WEBHOOK_FAILED",
+        },
+      ),
     );
   }
 }

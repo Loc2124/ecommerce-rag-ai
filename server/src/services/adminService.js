@@ -17,7 +17,7 @@ async function getAllOrders({ page = 1, limit = 50, status = null } = {}) {
   let query = supabase
     .from("orders")
     .select(
-      "id, user_id, status, payment_method, total, expires_at, payos_order_code, payos_payment_link_id, created_at, updated_at, order_items(id, order_id, product_id, quantity, price_at_order, products(id, category_id, sku, name, description, attributes, price, stock, is_active, created_at, updated_at)), payments(id, order_id, transaction_id, provider, status, amount, created_at), users(id, full_name)",
+      "id, user_id, status, payment_method, total, expires_at, payos_order_code, payos_payment_link_id, created_at, updated_at, order_items(id, order_id, product_id, quantity, price_at_order, products(id, category_id, sku, name, description, attributes, price, stock, is_active, created_at, updated_at)), payments(id, order_id, transaction_id, provider, status, amount, created_at), refund_requests(id, status, refund_transaction_id, requested_by, requested_at, processed_at, processed_by, note), users(id, full_name)",
       {
         count: "exact",
       },
@@ -66,6 +66,22 @@ async function updateOrderStatusAdmin(orderId, newStatus) {
     );
   }
 
+  if (newStatus === "cancelled" && order.status === "confirmed") {
+    const { data: payment, error: paymentError } = await supabase
+      .from("payments")
+      .select("id")
+      .eq("order_id", orderId)
+      .eq("status", "success")
+      .limit(1)
+      .maybeSingle();
+    if (paymentError) throw paymentError;
+    if (payment) {
+      throw new Error(
+        "Paid PayOS orders require a refund workflow before cancellation",
+      );
+    }
+  }
+
   if (newStatus === "cancelled") {
     const { data: cancelResult, error: cancelError } = await supabase.rpc(
       "cancel_and_restock_order",
@@ -76,14 +92,19 @@ async function updateOrderStatusAdmin(orderId, newStatus) {
       throw new Error(`Unable to cancel order: ${cancelResult}`);
     }
   } else {
-    const { error: updateError } = await supabase
+    const { data: updatedRows, error: updateError } = await supabase
       .from("orders")
       .update({
         status: newStatus,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", orderId);
+      .eq("id", orderId)
+      .eq("status", order.status)
+      .select("id");
     if (updateError) throw updateError;
+    if (!updatedRows || updatedRows.length !== 1) {
+      throw new Error("Order status changed concurrently");
+    }
   }
 
   const { data, error } = await supabase
@@ -94,7 +115,30 @@ async function updateOrderStatusAdmin(orderId, newStatus) {
     .eq("id", orderId)
     .single();
   if (error) throw error;
-  return data;
+  return { ...data, previous_status: order.status };
+}
+
+async function finalizeRefundAndCancelOrder(
+  orderId,
+  adminId,
+  refundTransactionId,
+  note = null,
+) {
+  const { data, error } = await supabase.rpc(
+    "finalize_refund_and_cancel_order",
+    {
+      p_order_id: orderId,
+      p_admin_id: adminId,
+      p_refund_transaction_id: refundTransactionId,
+      p_note: note,
+    },
+  );
+  if (error) throw error;
+  if (data !== "cancelled") {
+    throw new Error(`Unable to finalize refund: ${data}`);
+  }
+
+  return getOrderById(orderId);
 }
 
 async function getAnalytics() {
@@ -197,6 +241,7 @@ async function getOrderAnalytics() {
 module.exports = {
   getAllOrders,
   updateOrderStatusAdmin,
+  finalizeRefundAndCancelOrder,
   getAnalytics,
   getChatAnalytics,
   getProductAnalytics,
