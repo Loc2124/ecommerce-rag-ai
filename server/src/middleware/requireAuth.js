@@ -31,7 +31,9 @@ async function requireAuth(req, res, next) {
     return next();
   } catch (err) {
     console.error("Auth middleware error:", err);
-    return res.status(500).json({ error: err.message || "Internal error" });
+    return res
+      .status(500)
+      .json({ error: "Authentication service unavailable" });
   }
 }
 

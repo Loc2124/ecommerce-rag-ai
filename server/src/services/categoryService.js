@@ -12,16 +12,26 @@ function normalizeCategory(category) {
     ...category,
     id: category.id,
     name: category.name,
-    description: category.description || null,
     created_at: category.created_at,
-    updated_at: category.updated_at,
   };
+}
+
+function normalizeCategoryInput(input = {}) {
+  const name = String(input.name || "").trim();
+  const slug = String(input.slug || "")
+    .trim()
+    .toLowerCase();
+
+  if (!name) throw new Error("Category name is required");
+  if (!slug) throw new Error("Category slug is required");
+
+  return { name, slug };
 }
 
 async function getCategories() {
   const { data, error } = await supabase
     .from("categories")
-    .select("id, name, slug, description, created_at")
+    .select("id, name, slug, created_at")
     .order("name", { ascending: true });
 
   if (error) throw error;
@@ -36,7 +46,7 @@ async function getCategoryById(categoryId) {
 
   const { data, error } = await supabase
     .from("categories")
-    .select("id, name, slug, description, created_at")
+    .select("id, name, slug, created_at")
     .eq("id", categoryId)
     .maybeSingle();
 
@@ -67,8 +77,52 @@ async function getCategoryWithProducts(categoryId) {
   };
 }
 
+async function createCategory(input) {
+  const categoryInput = normalizeCategoryInput(input);
+  const { data, error } = await supabase
+    .from("categories")
+    .insert(categoryInput)
+    .select("id, name, slug, created_at")
+    .single();
+
+  if (error) throw error;
+  return normalizeCategory(data);
+}
+
+async function updateCategory(categoryId, input) {
+  if (!categoryId) throw new Error("categoryId is required");
+
+  const categoryInput = normalizeCategoryInput(input);
+  const { data, error } = await supabase
+    .from("categories")
+    .update(categoryInput)
+    .eq("id", categoryId)
+    .select("id, name, slug, created_at")
+    .maybeSingle();
+
+  if (error) throw error;
+  return normalizeCategory(data);
+}
+
+async function deleteCategory(categoryId) {
+  if (!categoryId) throw new Error("categoryId is required");
+
+  const { data, error } = await supabase
+    .from("categories")
+    .delete()
+    .eq("id", categoryId)
+    .select("id, name, slug, created_at")
+    .maybeSingle();
+
+  if (error) throw error;
+  return normalizeCategory(data);
+}
+
 module.exports = {
   getCategories,
   getCategoryById,
   getCategoryWithProducts,
+  createCategory,
+  updateCategory,
+  deleteCategory,
 };

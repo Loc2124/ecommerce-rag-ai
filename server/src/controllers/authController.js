@@ -36,83 +36,6 @@ function buildResponse(success, message, data = null, error = null) {
   };
 }
 
-async function emailAlreadyExists(email) {
-  if (!supabaseAdmin || !supabaseAdmin.auth?.admin?.listUsers) {
-    return false;
-  }
-
-  try {
-    let page = 1;
-
-    while (page <= 10) {
-      const { data, error } = await supabaseAdmin.auth.admin.listUsers({
-        page,
-        perPage: 1000,
-      });
-
-      if (error) {
-        console.error("Error listing auth users:", error);
-        return false;
-      }
-
-      const users = data?.users || [];
-      const found = users.some(
-        (user) => (user.email || "").toLowerCase() === email,
-      );
-
-      if (found) {
-        return true;
-      }
-
-      if (!users.length || users.length < 1000) {
-        return false;
-      }
-
-      page += 1;
-    }
-
-    return false;
-  } catch (err) {
-    console.error("emailAlreadyExists failed:", err);
-    return false;
-  }
-}
-
-async function checkEmailController(req, res) {
-  try {
-    const email = String(req.query?.email || "")
-      .trim()
-      .toLowerCase();
-
-    if (!email) {
-      return res.status(400).json(
-        buildResponse(false, "Email is required", null, {
-          code: "VALIDATION_ERROR",
-        }),
-      );
-    }
-
-    const exists = await emailAlreadyExists(email);
-
-    return res.json(
-      buildResponse(
-        true,
-        exists ? "Email already registered" : "Email is available",
-        {
-          available: !exists,
-        },
-      ),
-    );
-  } catch (err) {
-    console.error("Check email error:", err);
-    return res.status(500).json(
-      buildResponse(false, err.message || "Internal error", null, {
-        code: "INTERNAL_ERROR",
-      }),
-    );
-  }
-}
-
 async function registerController(req, res) {
   try {
     const { email, password, full_name } = req.body || {};
@@ -120,7 +43,12 @@ async function registerController(req, res) {
       .trim()
       .toLowerCase();
 
-    if (!normalizedEmail || !password) {
+    if (
+      !normalizedEmail ||
+      normalizedEmail.length > 320 ||
+      typeof password !== "string" ||
+      !password
+    ) {
       return res.status(400).json(
         buildResponse(false, "Email and password are required", null, {
           code: "VALIDATION_ERROR",
@@ -132,15 +60,6 @@ async function registerController(req, res) {
       return res.status(400).json(
         buildResponse(false, "Password must be at least 6 characters", null, {
           code: "WEAK_PASSWORD",
-        }),
-      );
-    }
-
-    const exists = await emailAlreadyExists(normalizedEmail);
-    if (exists) {
-      return res.status(409).json(
-        buildResponse(false, "Email already registered", null, {
-          code: "EMAIL_EXISTS",
         }),
       );
     }
@@ -173,7 +92,7 @@ async function registerController(req, res) {
       }
 
       return res.status(400).json(
-        buildResponse(false, error.message || "Registration failed", null, {
+        buildResponse(false, "Registration failed", null, {
           code: "SIGNUP_FAILED",
         }),
       );
@@ -192,7 +111,7 @@ async function registerController(req, res) {
   } catch (err) {
     console.error("Register error:", err);
     return res.status(500).json(
-      buildResponse(false, err.message || "Internal error", null, {
+      buildResponse(false, "Registration service unavailable", null, {
         code: "INTERNAL_ERROR",
       }),
     );
@@ -206,7 +125,12 @@ async function loginController(req, res) {
       .trim()
       .toLowerCase();
 
-    if (!normalizedEmail || !password) {
+    if (
+      !normalizedEmail ||
+      normalizedEmail.length > 320 ||
+      typeof password !== "string" ||
+      !password
+    ) {
       return res.status(400).json(
         buildResponse(false, "Email and password are required", null, {
           code: "VALIDATION_ERROR",
@@ -221,14 +145,9 @@ async function loginController(req, res) {
 
     if (error) {
       return res.status(401).json(
-        buildResponse(
-          false,
-          error.message || "Invalid login credentials",
-          null,
-          {
-            code: "AUTH_FAILED",
-          },
-        ),
+        buildResponse(false, "Invalid login credentials", null, {
+          code: "AUTH_FAILED",
+        }),
       );
     }
 
@@ -245,8 +164,174 @@ async function loginController(req, res) {
   } catch (err) {
     console.error("Login error:", err);
     return res.status(500).json(
-      buildResponse(false, err.message || "Internal error", null, {
+      buildResponse(false, "Login service unavailable", null, {
         code: "INTERNAL_ERROR",
+      }),
+    );
+  }
+}
+
+async function refreshTokenController(req, res) {
+  try {
+    const refreshToken = String(req.body?.refresh_token || "").trim();
+    if (!refreshToken) {
+      return res.status(400).json(
+        buildResponse(false, "Refresh token is required", null, {
+          code: "REFRESH_TOKEN_REQUIRED",
+        }),
+      );
+    }
+
+    const { data, error } = await supabase.auth.refreshSession({
+      refresh_token: refreshToken,
+    });
+
+    if (error || !data?.session) {
+      return res.status(401).json(
+        buildResponse(false, error?.message || "Invalid refresh token", null, {
+          code: "REFRESH_TOKEN_INVALID",
+        }),
+      );
+    }
+
+    return res.json(
+      buildResponse(true, "Token refreshed successfully", {
+        user: data.user || null,
+        session: {
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+          expires_at: data.session.expires_at || null,
+        },
+      }),
+    );
+  } catch (err) {
+    console.error("Refresh token error:", err);
+    return res.status(500).json(
+      buildResponse(false, "Authentication service unavailable", null, {
+        code: "INTERNAL_ERROR",
+      }),
+    );
+  }
+}
+
+async function updateProfileController(req, res) {
+  try {
+    const fullName = String(req.body?.full_name || "").trim();
+    if (fullName.length > 120) {
+      return res.status(400).json(
+        buildResponse(false, "Full name must not exceed 120 characters", null, {
+          code: "INVALID_PROFILE",
+        }),
+      );
+    }
+
+    if (!supabaseAdmin) throw new Error("Admin auth client is not configured");
+    const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
+      req.user.id,
+      { user_metadata: { ...req.user.user_metadata, full_name: fullName } },
+    );
+    if (error) throw error;
+
+    return res.json(
+      buildResponse(true, "Profile updated successfully", {
+        user: {
+          id: data.user.id,
+          email: data.user.email,
+          full_name: data.user.user_metadata?.full_name || null,
+          role: data.user.app_metadata?.role || "customer",
+        },
+      }),
+    );
+  } catch (err) {
+    console.error("Update profile error:", err);
+    return res.status(500).json(
+      buildResponse(false, "Profile update failed", null, {
+        code: "PROFILE_UPDATE_FAILED",
+      }),
+    );
+  }
+}
+
+async function forgotPasswordController(req, res) {
+  try {
+    const email = String(req.body?.email || "")
+      .trim()
+      .toLowerCase();
+    if (!email) {
+      return res.status(400).json(
+        buildResponse(false, "Email is required", null, {
+          code: "VALIDATION_ERROR",
+        }),
+      );
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: process.env.PASSWORD_RESET_REDIRECT_URL,
+    });
+    if (error) throw error;
+
+    return res.json(
+      buildResponse(true, "If the email exists, a reset link has been sent"),
+    );
+  } catch (err) {
+    console.error("Forgot password error:", err);
+    return res.status(500).json(
+      buildResponse(false, "Password reset service unavailable", null, {
+        code: "PASSWORD_RESET_FAILED",
+      }),
+    );
+  }
+}
+
+async function changePasswordController(req, res) {
+  try {
+    const currentPassword = String(req.body?.current_password || "");
+    const newPassword = String(req.body?.new_password || "");
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json(
+        buildResponse(false, "Current and new passwords are required", null, {
+          code: "VALIDATION_ERROR",
+        }),
+      );
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json(
+        buildResponse(
+          false,
+          "New password must be at least 6 characters",
+          null,
+          {
+            code: "WEAK_PASSWORD",
+          },
+        ),
+      );
+    }
+
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: req.user.email,
+      password: currentPassword,
+    });
+    if (verifyError) {
+      return res.status(401).json(
+        buildResponse(false, "Current password is invalid", null, {
+          code: "CURRENT_PASSWORD_INVALID",
+        }),
+      );
+    }
+
+    if (!supabaseAdmin) throw new Error("Admin auth client is not configured");
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(
+      req.user.id,
+      { password: newPassword },
+    );
+    if (error) throw error;
+
+    return res.json(buildResponse(true, "Password changed successfully"));
+  } catch (err) {
+    console.error("Change password error:", err);
+    return res.status(500).json(
+      buildResponse(false, "Password change failed", null, {
+        code: "PASSWORD_CHANGE_FAILED",
       }),
     );
   }
@@ -282,8 +367,11 @@ async function meController(req, res) {
 }
 
 module.exports = {
-  checkEmailController,
   registerController,
   loginController,
+  refreshTokenController,
+  updateProfileController,
+  forgotPasswordController,
+  changePasswordController,
   meController,
 };

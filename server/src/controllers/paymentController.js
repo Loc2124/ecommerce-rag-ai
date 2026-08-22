@@ -20,12 +20,18 @@ async function createPaymentLinkController(req, res) {
       ? 403
       : message.includes("not found")
         ? 404
-        : 400;
-    return res
-      .status(status)
-      .json(
-        buildResponse(false, message, null, { code: "PAYMENT_CREATE_FAILED" }),
-      );
+        : message.includes("already being created")
+          ? 409
+          : 400;
+    const publicMessage =
+      status === 403 || status === 404 || status === 409
+        ? message
+        : "Payment link creation failed";
+    return res.status(status).json(
+      buildResponse(false, publicMessage, null, {
+        code: "PAYMENT_CREATE_FAILED",
+      }),
+    );
   }
 }
 

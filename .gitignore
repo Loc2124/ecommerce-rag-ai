@@ -9,6 +9,9 @@ node_modules/
 # Logs
 npm-debug.log*
 
+# Local benchmark checkpoints and embedding cache
+.benchmark-cache/
+
 # OS
 .DS_Store
 Thumbs.db

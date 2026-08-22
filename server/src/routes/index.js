@@ -8,6 +8,7 @@ const categoryRouter = require("./categoryRouter");
 const adminRouter = require("./adminRouter");
 const webhookRouter = require("./webhookRouter");
 const paymentRouter = require("./paymentRouter");
+const healthRouter = require("./healthRouter");
 
 const router = express.Router();
 router.use(aiRouter);
@@ -19,5 +20,6 @@ router.use(categoryRouter);
 router.use(adminRouter);
 router.use(webhookRouter);
 router.use(paymentRouter);
+router.use(healthRouter);
 
 module.exports = router;

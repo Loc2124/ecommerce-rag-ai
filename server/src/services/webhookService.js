@@ -62,6 +62,9 @@ async function syncPaymentWebhookStatus(
       if (!transactionId || amount === undefined || amount === null) {
         throw new Error("transaction_id and amount are required for PAID");
       }
+      if (!Number.isFinite(Number(amount)) || Number(amount) < 0) {
+        throw new Error("amount must be a non-negative number");
+      }
 
       const { data, error } = await supabase.rpc("confirm_payos_payment", {
         p_order_id: orderId,
@@ -71,15 +74,35 @@ async function syncPaymentWebhookStatus(
       if (error) throw error;
       orderStatus = data;
 
-      const { error: payloadError } = await supabase
-        .from("payments")
-        .update({ raw_webhook_payload: rawPayload || {} })
-        .eq("transaction_id", transactionId);
-      if (payloadError) throw payloadError;
+      if (orderStatus !== "already_processed") {
+        const { error: payloadError } = await supabase
+          .from("payments")
+          .update({ raw_webhook_payload: rawPayload || {} })
+          .eq("transaction_id", transactionId);
+        if (payloadError) throw payloadError;
+      }
     } else if (webhookStatus === "CANCELLED" || webhookStatus === "EXPIRED") {
+      const { data: currentOrder, error: orderError } = await supabase
+        .from("orders")
+        .select("status, payment_method")
+        .eq("id", orderId)
+        .maybeSingle();
+      if (orderError) throw orderError;
+      if (!currentOrder) throw new Error("Order not found");
+
+      if (currentOrder.status !== "pending") {
+        return {
+          order_id: orderId,
+          transaction_id: transactionId || null,
+          payment_status: webhookStatus,
+          order_status: currentOrder.status,
+          synced_at: new Date().toISOString(),
+        };
+      }
+
       const { data, error } = await supabase.rpc("cancel_and_restock_order", {
         p_order_id: orderId,
-        p_new_status: webhookStatus.toLowerCase(),
+        p_new_status: webhookStatus === "EXPIRED" ? "expired" : "cancelled",
       });
       if (error) throw error;
       orderStatus = data;
